@@ -4,43 +4,71 @@ import cv2         #图像处理模块
  
 #parse args
 parser = argparse.ArgumentParser(description='Downsize images at 2x using bicubic interpolation')    #创建一个参数解析对象，为解析对象添加描述语句，而这个描述语句是当调用parser.print_help()或者运行程序时由于参数不正确(此时python解释器其实也是调用了pring_help()方法)时，会打印这些描述信息
-parser.add_argument("-k", "--keepdims", help="keep original image dimensions in downsampled images", action="store_true")
-parser.add_argument('--hr_img_dir', type=str, default=r'C:\Users\17865\Desktop\SRtoDR\input',
+parser.add_argument("-k", "--keepdims", help="keep original image dimensions in downsampled images", action="store_true")    #为函数添加参数k和参数keepdims，并且设置action="store_true"，也就是当命令行提及到这两个参数的时候，参数设置为true，如果没提及那就是默认值（如果用了default制定了默认值的话）
+parser.add_argument('--hr_img_dir', type=str, default=r'C:\Users\17865\Desktop\SRtoDR\input',        #设置高分辨率图片路径参数
                     help='path to high resolution image dir')
-parser.add_argument('--lr_img_dir', type=str, default=r'C:\Users\17865\Desktop\SRtoDR\result',
+parser.add_argument('--lr_img_dir', type=str, default=r'C:\Users\17865\Desktop\SRtoDR\result',       #设置低分辨率路径参数
                     help='path to desired output dir for downsampled images')
-args = parser.parse_args()
+args = parser.parse_args()                                #调用parse_args()方法对参数进行解析；解析成功之后即可使用
  
-hr_image_dir = args.hr_img_dir
-lr_image_dir = args.lr_img_dir
+hr_image_dir = args.hr_img_dir              #从参数列表中取出高分辨率图像路径
+lr_image_dir = args.lr_img_dir              #从参数列表中取出低分辨率图像路径
  
-print(args.hr_img_dir)
-print(args.lr_img_dir)
+print(args.hr_img_dir)                      #将高分辨率图像路径打印出来
+print(args.lr_img_dir)                      #将低分辨率图像路径打印出来
  
  
 #create LR image dirs
-os.makedirs(lr_image_dir + "/X2", exist_ok=True)
+#在低分辨率图像路径中创建每个下采样倍率的文件夹
+os.makedirs(lr_image_dir + "/X2", exist_ok=True)       #创建下采样2倍率的文件夹，exist_ok：只有在目录不存在时创建目录，目录已存在时不会抛出异常       
 os.makedirs(lr_image_dir + "/X3", exist_ok=True)
 os.makedirs(lr_image_dir + "/X4", exist_ok=True)
 os.makedirs(lr_image_dir + "/X6", exist_ok=True)
- 
+os.makedirs(lr_image_dir + "/X8", exist_ok=True) 
+
 supported_img_formats = (".bmp", ".dib", ".jpeg", ".jpg", ".jpe", ".jp2",
                          ".png", ".pbm", ".pgm", ".ppm", ".sr", ".ras", ".tif",
-                         ".tiff")
+                         ".tiff")      #在这里用一个元组保存支持进行下采样的图像的后缀格式
  
 #Downsample HR images
-for filename in os.listdir(hr_image_dir):
-    if not filename.endswith(supported_img_formats):
+#对高分辨率图像进行下采样
+for filename in os.listdir(hr_image_dir):             #遍历高分辨率图像文件夹中的每一个文件
+    if not filename.endswith(supported_img_formats):    #如果文件的后缀名不是支持下采样的图片格式，那么就跳过这张图片
         continue
  
-    name, ext = os.path.splitext(filename)
+    name, ext = os.path.splitext(filename)              #os.path.splitext(“文件路径”)：分离文件名与扩展名；默认返回(fname,fextension)元组
+    #在这里，我们将遍历的每个文件的文件名存在变量name中，后缀存在ext中
  
     #Read HR image
-    hr_img = cv2.imread(os.path.join(hr_image_dir, filename))
-    hr_img_dims = (hr_img.shape[1], hr_img.shape[0])
+    hr_img = cv2.imread(os.path.join(hr_image_dir, filename))   
+    """
+    os.path.join()函数用于路径拼接文件路径,在这里也就是将文件所在目录和文件名拼接在一起，获得文件完整的路径
+    cv2.imread:为 opencv-python 包的读取图片的函数,cv2.imread()有两个参数,第一个参数filename是图片路径,第二个参数flag表示图片读取模式,共有三种
+    cv2.IMREAD_COLOR:加载彩色图片,这个是默认参数,可以直接写1。
+    cv2.IMREAD_GRAYSCALE:以灰度模式加载图片,可以直接写0。
+    cv2.IMREAD_UNCHANGED:包括alpha(包括透明度通道)，可以直接写-1
+    cv2.imread()读取图片后以多维数组的形式保存图片信息，前两维表示图片的像素坐标,最后一维表示图片的通道索引,具体图像的通道数由图片的格式来决定
+    """
+    
+    
+    hr_img_dims = (hr_img.shape[1], hr_img.shape[0])       #获得高清图片的分辨率，分辨率值为一个(high,wide)的元组
  
     #Blur with Gaussian kernel of width sigma = 1
+    #设置一个宽度为1的高斯模糊核
     hr_img = cv2.GaussianBlur(hr_img, (0,0), 1, 1)
+    """
+    高斯滤波是对整幅图像进行加权平均的过程，每一个像素点的值都由其本身和邻域内的其他像素值经过加权平均后得到。高斯滤波的具体操作是：用一个模板（或称卷积、掩模）扫描图像中的每一个像素，
+    用模板确定的邻域内像素的加权平均灰度值去替代模板中心像素点的值,基于二维高斯函数，构建权重矩阵，进而构建高斯核，最终对每个像素点进行滤波处理（平滑、去噪）
+    基于二维高斯函数，构建权重矩阵，进而构建高斯核，最终对每个像素点进行滤波处理（平滑、去噪）
+    dst=cv2.GaussianBlur(src,ksize,sigmaX,sigmaY,borderType)
+    dst是返回值,表示进行高斯滤波后得到的处理结果
+    src 是需要处理的图像，即原始图像。它能够有任意数量的通道,并能对各个通道独立处理。图像深度应该是CV_8U、CV_16U、CV_16S、CV_32F 或者 CV_64F中的一 种
+    ksize 是滤波核的大小。滤波核大小是指在滤波处理过程中其邻域图像的高度和宽度。需要注意，滤波核的值必须是奇数
+    sigmaX 是卷积核在水平方向上(X 轴方向）的标准差，其控制的是权重比例
+    sigmaY是卷积核在垂直方向上(Y轴方向)的标准差。如果将该值设置为0,则只采用sigmaX的值
+    如果sigmaX和sigmaY都是0，则通过ksize.width和ksize.height计算得到。其中:sigmaX=0.3*[(ksize.width-1)*0.5-1] +0.8,sigmaY=0.3*[(ksize.height-1)*0.5-1]+0.8
+    
+    """
     #cv2.GaussianBlur(hr_img, (0,0), 1, 1)   其中模糊核这里用的0。两个1分别表示x、y方向的标准差。 可以具体查看该函数的官方文档。
     #Downsample image 2x
     lr_image_2x = cv2.resize(hr_img, (0,0), fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)
