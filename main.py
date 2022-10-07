@@ -59,23 +59,37 @@ for filename in os.listdir(hr_image_dir):             #遍历高分辨率图像�
     """
     高斯滤波是对整幅图像进行加权平均的过程，每一个像素点的值都由其本身和邻域内的其他像素值经过加权平均后得到。高斯滤波的具体操作是：用一个模板（或称卷积、掩模）扫描图像中的每一个像素，
     用模板确定的邻域内像素的加权平均灰度值去替代模板中心像素点的值,基于二维高斯函数，构建权重矩阵，进而构建高斯核，最终对每个像素点进行滤波处理（平滑、去噪）
-    基于二维高斯函数，构建权重矩阵，进而构建高斯核，最终对每个像素点进行滤波处理（平滑、去噪）
     dst=cv2.GaussianBlur(src,ksize,sigmaX,sigmaY,borderType)
     dst是返回值,表示进行高斯滤波后得到的处理结果
     src 是需要处理的图像，即原始图像。它能够有任意数量的通道,并能对各个通道独立处理。图像深度应该是CV_8U、CV_16U、CV_16S、CV_32F 或者 CV_64F中的一 种
     ksize 是滤波核的大小。滤波核大小是指在滤波处理过程中其邻域图像的高度和宽度。需要注意，滤波核的值必须是奇数
     sigmaX 是卷积核在水平方向上(X 轴方向）的标准差，其控制的是权重比例
-    sigmaY是卷积核在垂直方向上(Y轴方向)的标准差。如果将该值设置为0,则只采用sigmaX的值
+    sigmaY 是卷积核在垂直方向上(Y轴方向)的标准差。如果将该值设置为0,则只采用sigmaX的值
     如果sigmaX和sigmaY都是0，则通过ksize.width和ksize.height计算得到。其中:sigmaX=0.3*[(ksize.width-1)*0.5-1] +0.8,sigmaY=0.3*[(ksize.height-1)*0.5-1]+0.8
     
     """
     #cv2.GaussianBlur(hr_img, (0,0), 1, 1)   其中模糊核这里用的0。两个1分别表示x、y方向的标准差。 可以具体查看该函数的官方文档。
     #Downsample image 2x
-    lr_image_2x = cv2.resize(hr_img, (0,0), fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)
-    if args.keepdims:
-        lr_image_2x = cv2.resize(lr_image_2x, hr_img_dims, interpolation=cv2.INTER_CUBIC)
+    lr_image_2x = cv2.resize(hr_img, (0,0), fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)      
+    """
+    resize是opencv库中的一个函数，主要起到对图片进行缩放的作用
+    resize(InputArray src, OutputArray dst, Size dsize, double fx=0, double fy=0, int interpolation=INTER_LINEAR )
+    InputArray src:要进行缩放的图片
+    OutputArray dst： 输出，改变后的图像。这个图像和原图像具有相同的内容，只是大小和原图像不一样而已
+    dsize：输出图像的大小，如果是(0,0)我认为意思就是在这里不指定输出图像的大小
+    fx：width方向的缩放比例
+    fy：height方向的缩放比例
+    interpolation（插值）：这个是指定插值的方式，图像缩放之后，肯定像素要进行重新计算的，就靠这个参数来指定重新计算像素的方式，有以下几种：
+        INTER_NEAREST - 最邻近插值
+        INTER_LINEAR - 双线性插值，如果最后一个参数你不指定，默认使用这种方法
+        INTER_CUBIC - 4x4像素邻域内的双立方插值
+        INTER_LANCZOS4 - 8x8像素邻域内的Lanczos插值
+        在本代码中使用双线性插值
+    """
+    if args.keepdims:                   #如果要保持原来分辨率的话
+        lr_image_2x = cv2.resize(lr_image_2x, hr_img_dims, interpolation=cv2.INTER_CUBIC)          #就将缩小成两倍的图片再用双线性插值法重新放大到原来的高清的图像分辨率
  
-    cv2.imwrite(os.path.join(lr_image_dir + "/X2", filename.split('.')[0]+'x2'+ext), lr_image_2x)
+    cv2.imwrite(os.path.join(lr_image_dir + "/X2", filename.split('.')[0]+'x2'+ext), lr_image_2x)  #将文件写入准备好的低分辨率中的"x2"文件夹中，并在原有的文件名基础之上加上字符串'x2'
  
     #Downsample image 3x
     lr_img_3x = cv2.resize(hr_img, (0, 0), fx=(1 / 3), fy=(1 / 3),
@@ -100,3 +114,11 @@ for filename in os.listdir(hr_image_dir):             #遍历高分辨率图像�
         lr_img_4x = cv2.resize(lr_img_6x, hr_img_dims,
                                interpolation=cv2.INTER_CUBIC)
     cv2.imwrite(os.path.join(lr_image_dir + "/X6", filename.split('.')[0]+'x6'+ext), lr_img_6x)
+
+    # Downsample image 8x
+    lr_img_8x = cv2.resize(hr_img, (0, 0), fx=1/8, fy=1/8,
+                           interpolation=cv2.INTER_CUBIC)
+    if args.keepdims:
+        lr_img_8x = cv2.resize(lr_img_8x, hr_img_dims,
+                               interpolation=cv2.INTER_CUBIC)
+    cv2.imwrite(os.path.join(lr_image_dir + "/X8", filename.split('.')[0]+'x8'+ext), lr_img_8x)
